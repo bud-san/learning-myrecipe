@@ -1,11 +1,11 @@
 /// <reference types="astro/client" />
 
 interface ImportMetaEnv {
-  readonly MICROCMS_SERVICE_DOMAIN: string
-  readonly MICROCMS_API_KEY: string
+  readonly VITE_MICROCMS_SERVICE_DOMAIN: string
+  readonly VITE_MICROCMS_API_KEY: string
   // オプション: APIエンドポイント名を環境変数で設定可能
-  readonly MICROCMS_RECIPES_ENDPOINT?: string
-  readonly MICROCMS_INGREDIENTS_ENDPOINT?: string
+  readonly VITE_MICROCMS_RECIPES_ENDPOINT?: string
+  readonly VITE_MICROCMS_INGREDIENTS_ENDPOINT?: string
 }
 
 interface ImportMeta {

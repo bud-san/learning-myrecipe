@@ -4,11 +4,11 @@ import type {
   MicroCMSListResponse
 } from '@/types/microcms'
 
-const SERVICE_DOMAIN = import.meta.env.MICROCMS_SERVICE_DOMAIN
-const API_KEY = import.meta.env.MICROCMS_API_KEY
-const RECIPES_ENDPOINT = import.meta.env.MICROCMS_RECIPES_ENDPOINT || 'recipe'
+const SERVICE_DOMAIN = import.meta.env.VITE_MICROCMS_SERVICE_DOMAIN
+const API_KEY = import.meta.env.VITE_MICROCMS_API_KEY
+const RECIPES_ENDPOINT = import.meta.env.VITE_MICROCMS_RECIPES_ENDPOINT || 'recipe'
 const INGREDIENTS_ENDPOINT =
-  import.meta.env.MICROCMS_INGREDIENTS_ENDPOINT || 'ingredients'
+  import.meta.env.VITE_MICROCMS_INGREDIENTS_ENDPOINT || 'ingredients'
 
 const BASE_URL = `https://${SERVICE_DOMAIN}.microcms.io/api/v1`
 

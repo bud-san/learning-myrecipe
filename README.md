@@ -26,8 +26,8 @@ npm install
 `.env`ファイルを作成し、MicroCMSの認証情報を設定してください：
 
 ```env
-MICROCMS_SERVICE_DOMAIN=your-service-domain
-MICROCMS_API_KEY=your-api-key
+VITE_MICROCMS_SERVICE_DOMAIN=your-service-domain
+VITE_MICROCMS_API_KEY=your-api-key
 ```
 
 `.env.example`を参考にしてください。
