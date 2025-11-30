@@ -1,13 +1,15 @@
 ---
 import Icon from './icon.astro'
 import { faHouse } from '../lib/icons'
+
+const baseUrl = import.meta.env.BASE_URL
 ---
 
 <header class="bg-primary">
   <div class="container mx-auto px-4 py-3">
     <nav class="flex items-center justify-center">
       <a
-        href="/"
+        href={baseUrl}
         class="flex items-center gap-2 hover:opacity-90 transition-opacity"
         aria-label="ホーム"
       >
