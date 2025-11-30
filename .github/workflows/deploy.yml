@@ -40,6 +40,11 @@ jobs:
           bun run astro build \
             --site "${{ steps.pages.outputs.origin }}" \
             --base "${{ steps.pages.outputs.base_path }}"
+        env:
+          MICROCMS_SERVICE_DOMAIN: ${{ secrets.MICROCMS_SERVICE_DOMAIN }}
+          MICROCMS_API_KEY: ${{ secrets.MICROCMS_API_KEY }}
+          MICROCMS_RECIPES_ENDPOINT: ${{ secrets.MICROCMS_RECIPES_ENDPOINT }}
+          MICROCMS_INGREDIENTS_ENDPOINT: ${{ secrets.MICROCMS_INGREDIENTS_ENDPOINT }}
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
