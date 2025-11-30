@@ -23,7 +23,8 @@ npm install
 
 ### 2. 環境変数の設定
 
-`.env`ファイルを作成し、MicroCMSの認証情報を設定してください：
+`.env`ファイルを作成し、MicroCMSの認証情報を設定してください：  
+※githubでの環境変数定義時には「VITE_」をつけないこと
 
 ```env
 VITE_MICROCMS_SERVICE_DOMAIN=your-service-domain
