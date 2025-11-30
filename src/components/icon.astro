@@ -1,0 +1,50 @@
+---
+import { icon } from '@fortawesome/fontawesome-svg-core'
+import type { IconDefinition } from '@fortawesome/fontawesome-svg-core'
+
+interface Props {
+  icon: IconDefinition
+  class?: string
+  size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl' | '2xl'
+}
+
+const { icon: iconDef, class: className = '', size = 'md' } = Astro.props
+
+const sizeMap = {
+  xs: 'w-3 h-3',
+  sm: 'w-4 h-4',
+  md: 'w-5 h-5',
+  lg: 'w-6 h-6',
+  xl: 'w-8 h-8',
+  '2xl': 'w-10 h-10',
+}
+
+const iconData = icon(iconDef)
+
+// htmlプロパティからSVGの内容を取得
+const htmlArray = iconData?.html || []
+const svgContent = Array.isArray(htmlArray) ? htmlArray.join('') : htmlArray
+
+// viewBoxを取得
+let viewBoxStr = '0 0 512 512'
+if (iconData) {
+  const viewBox = (iconData as { viewBox?: [number, number, number, number] | string }).viewBox
+  if (Array.isArray(viewBox)) {
+    viewBoxStr = `${viewBox[0]} ${viewBox[1]} ${viewBox[2]} ${viewBox[3]}`
+  } else if (typeof viewBox === 'string') {
+    viewBoxStr = viewBox
+  }
+}
+
+const classes = `${sizeMap[size]} ${className}`.trim()
+---
+
+<svg
+  class={classes}
+  viewBox={viewBoxStr}
+  fill="currentColor"
+  aria-hidden="true"
+  xmlns="http://www.w3.org/2000/svg"
+  set:html={svgContent}
+/>
+

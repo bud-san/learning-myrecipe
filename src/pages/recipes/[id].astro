@@ -1,0 +1,523 @@
+---
+import BaseLayout from '@/layouts/base-layout.astro'
+import Header from '@/components/header.astro'
+import { getRecipe, getRecipes } from '@/lib/microcms'
+import { marked } from 'marked'
+import type { Recipe } from '@/types/microcms'
+import Icon from '@/components/icon.astro'
+import { faBook, faUtensils, faCheck } from '@/lib/icons'
+
+
+// 静的パス生成（SSG用）
+export async function getStaticPaths() {
+  try {
+    const allRecipes = await getRecipes({ limit: 1000 })
+    return allRecipes.contents.map((recipe) => ({
+      params: { id: recipe.id }
+    }))
+  } catch (error) {
+    console.error('Failed to fetch recipes for static paths:', error)
+    return []
+  }
+}
+
+const { id } = Astro.params
+
+if (!id) {
+  return Astro.redirect('/')
+}
+
+let recipe: Recipe
+try {
+  recipe = await getRecipe(id)
+  // デバッグ: 材料データの構造を確認
+  // if (recipe.ingredients && recipe.ingredients.length > 0) {
+  //   console.log('First ingredient item:', JSON.stringify(recipe.ingredients[0], null, 2))
+  // }
+} catch (error) {
+  console.error(`Failed to fetch recipe ${id}:`, error)
+  return Astro.redirect('/')
+}
+
+// 秒数を時:分:秒の形式に変換する関数
+const formatTimer = (seconds: number): string => {
+  const hours = Math.floor(seconds / 3600)
+  const minutes = Math.floor((seconds % 3600) / 60)
+  const secs = seconds % 60
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
+}
+
+// マークダウンをHTMLに変換
+const stepDescriptions = (recipe.steps || []).map((step) => ({
+  ...step,
+  htmlDescription: marked(step.description || '')
+}))
+
+// 材料をグループ化（groupフィールドに基づく）
+// まず、ingredientsフィールドを確認し、なければrequiredIngredientsを使用（後方互換性）
+const ingredientItems = recipe.ingredients || []
+const groupedIngredients = ingredientItems.reduce((groups, item) => {
+  const groupId = item.group?.toString() || 'その他'
+  if (!groups[groupId]) {
+    groups[groupId] = []
+  }
+  groups[groupId].push(item)
+  return groups
+}, {} as Record<string, typeof ingredientItems>)
+---
+
+<BaseLayout title={`${recipe.title} - マイレシピ`}>
+  <Header />
+  <main class="container mx-auto px-10 py-20 pb-24 flex-col flex gap-20">
+    <!-- レシピヘッダー -->
+    <header class="flex items-center flex-col justify-between gap-6">
+      <h1 class="text-4xl font-semibold text-gray-800">{recipe.title}</h1>
+      <ul class="flex flex-wrap gap-2">
+        {(recipe.cooking || recipe.cookingMethods || []).map((method) => (
+          <li class="inline-flex items-center gap-1 border border-primary rounded-md px-2 py-1">
+            <Icon icon={faCheck} size="xs" class="text-primary" />
+            <span class="text-sm text-gray-700">{method}</span>
+          </li>
+        ))}
+      </ul>
+      {recipe.description && (
+        <p class="text-gray-700 leading-relaxed w-xl mx-auto">{recipe.description}</p>
+      )}
+    </header>
+
+    <!-- タブナビゲーション（後で下部に移動） -->
+    <div id="tab-navigation" class="hidden">
+      <button data-tab="cooking" class="tab-button"></button>
+      <button data-tab="memo" class="tab-button"></button>
+    </div>
+
+    <!-- Cookingタブ -->
+    <div id="cooking-tab" class="tab-content">
+      <div class="flex gap-6">
+        <!-- メインコンテンツ -->
+        <div class="flex-1 pr-10">
+          <section class="mb-6">
+            <div class="space-y-10">
+              {stepDescriptions.map((step, index) => {
+
+                return (
+                  <article
+                    id={`step-${index+1}`}
+                    tabindex="-1"
+                    class={`scroll-mt-20 focus:py-12 p-8 rounded-lg bg-gray-100 focus:bg-red-100 transition-all duration-400 ease-in-out`}
+                  >
+                    <div class="flex items-start gap-4">
+                      <div class="flex-1 flex flex-nowrap gap-10 justify-between items-center">
+                        <div
+                          class="prose prose-lg max-w-none text-xl leading-relaxed text-gray-800"
+                          set:html={step.htmlDescription}
+                        />
+                        {step.timer && (
+                          <button
+                            class="timer-button mt-4 px-4 py-2 bg-red-300 text-white rounded-md hover:bg-red-500 transition-colors text-md font-medium"
+                            data-timer={step.timer}
+                            data-initial-time={step.timer}
+                          >
+                            {formatTimer(step.timer)}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </article>
+                )
+              })}
+            </div>
+          </section>
+        </div>
+
+        <!-- ステップナビゲーション（右側） -->
+        <aside class="block fixed right-8 transform top-1/2 -translate-y-1/2 w-4">
+          <nav class="flex flex-col gap-4">
+            {(recipe.steps || []).map((step,index) => (
+              <div class="relative not-last:*:before:content-[''] not-last:*:before:absolute">
+                <div class="before:w-px before:h-4 before:bg-gray-300 before:top-4 before:left-1/2 before:-translate-x-1/2">
+                  <a
+                    href={`#step-${index+1}`}
+                    class="step-nav-dot w-4 h-4 rounded-full bg-gray-300 hover:bg-red-200 focus:bg-red-200 transition-colors block"
+                    data-step={index}
+                    aria-label={`ステップ${index+1}`}
+                  />
+                </div>
+              </div>
+            ))}
+          </nav>
+        </aside>
+      </div>
+    </div>
+
+    <!-- Memoタブ -->
+    <div id="memo-tab" class="tab-content hidden">
+      <section>
+        <h2 class="text-xl font-semibold text-gray-800 mb-4">必要な材料</h2>
+        {recipe.servings && (
+          <p class="text-gray-700 mb-4 text-sm inline-flex items-center flex-nowrap gap-1">
+            <span class="font-medium">※</span> {recipe.servings}
+          </p>
+        )}
+        <div class="space-y-8">
+          {Object.keys(groupedIngredients).length > 0 ? (
+            Object.entries(groupedIngredients).map(([groupId, items]) => (
+              <div id={groupId} class="bg-gray-50 p-8 rounded-lg">
+                <h3 class="font-semibold text-gray-800 mb-3">{groupId === "その他" ? groupId : `グループ${groupId}`}</h3>
+                <ul class="space-y-2">
+                  {items.map((item, idx) => {
+                    // 材料名を取得（item.ingredients.titleを優先）
+                    let ingredientName = '材料名不明'
+                    let ingredientId = `ingredient-${idx}`
+
+                    // item.ingredients.titleから直接取得
+                    if (item.ingredients &&
+                        typeof item.ingredients === 'object' &&
+                        'title' in item.ingredients &&
+                        typeof item.ingredients.title === 'string' &&
+                        item.ingredients.title) {
+                      ingredientName = item.ingredients.title
+                    } else if (item.ingredient && typeof item.ingredient === 'object') {
+                      // フォールバック: ingredientオブジェクトから取得
+                      const ingredientObj = item.ingredient
+
+                      // IDを取得
+                      if ('id' in ingredientObj && typeof ingredientObj.id === 'string') {
+                        ingredientId = ingredientObj.id
+                      }
+
+                      // 名前を取得（title, nameの順で確認）
+                      if ('title' in ingredientObj && typeof ingredientObj.title === 'string' && ingredientObj.title) {
+                        ingredientName = ingredientObj.title
+                      } else if ('name' in ingredientObj && typeof ingredientObj.name === 'string' && ingredientObj.name) {
+                        ingredientName = ingredientObj.name
+                      } else if ('id' in ingredientObj) {
+                        ingredientName = `材料ID: ${ingredientObj.id}`
+                      }
+                    }
+
+                    return (
+                      <li class="overflow-hidden border-b border-gray-400 py-4">
+                        <div class="flex justify-between items-center px-4">
+                          <div>
+                            <div class="flex justify-start items-center">
+                              <div class="text-md font-semibold ingredient-name text-gray-800">{ingredientName}</div>
+                              {item.quantity && (
+                                <div class="ingredient-quantity text-gray-800 text-sm ml-3">{item.quantity}</div>
+                              )}
+                            </div>
+                            {item.parts && (
+                              <div class="ingredient-parts text-gray-400 text-xs mt-1">{item.parts}</div>
+                            )}
+                          </div>
+                          <button
+                            type="button"
+                            class="ingredient-checkbox ml-4 p-1 bg-white leading-none rounded border-2 border-red-500 cursor-pointer transition-colors"
+                            data-ingredient-id={`ingredient-${groupId}-${ingredientId}`}
+                            aria-label={`${ingredientName}をチェック`}
+                          >
+                            <Icon icon={faCheck} size="sm" class="opacity-0 transition-opacity text-red-500" />
+                          </button>
+                        </div>
+                      </li>
+                    )
+                  })}
+                </ul>
+              </div>
+            ))
+          ) : (
+            <p class="text-gray-500">材料情報がありません</p>
+          )}
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- タブナビゲーション（下部固定） -->
+  <nav class="fixed w-full bottom-5 px-6 z-50">
+    <div class="container rounded-md overflow-hidden mx-auto bg-white border border-gray-200 shadow-lg">
+      <div id="bottom-tab-navigation" class="flex">
+        <button
+          data-tab="cooking"
+          class="flex-1 tab-button flex-col flex items-center justify-center gap-0.5 p-3 text-white bg-primary hover:bg-green-600 transition-colors"
+        >
+          <Icon icon={faUtensils} size="lg" />
+          <span class="block text-xs">Cooking</span>
+        </button>
+        <button
+          data-tab="memo"
+          class="flex-1 tab-button flex-col flex items-center justify-center gap-0.5 p-3 text-gray-700 bg-white hover:bg-gray-50 transition-colors"
+        >
+          <Icon icon={faBook} size="lg" />
+          <span class="block text-xs">Memo</span>
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- 材料グループモーダル -->
+  <div
+    id="ingredient-modal"
+    class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+  >
+    <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4 max-h-[80vh] overflow-y-auto">
+      <div class="flex justify-between items-center mb-4">
+        <h3 id="modal-title" class="text-xl font-bold"></h3>
+        <button
+          id="close-modal"
+          class="text-gray-500 hover:text-gray-700 text-2xl"
+        >
+          ×
+        </button>
+      </div>
+      <div id="modal-content"></div>
+    </div>
+  </div>
+</BaseLayout>
+
+<script>
+  // タブ切り替え（下部ナビゲーション）
+  const bottomTabButtons = document.querySelectorAll('#bottom-tab-navigation .tab-button')
+  const tabContents = document.querySelectorAll('.tab-content')
+
+  bottomTabButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+      const targetTab = (button as HTMLElement).dataset.tab
+
+      // タブボタンの状態更新
+      bottomTabButtons.forEach((btn) => {
+        const btnEl = btn as HTMLElement
+        btnEl.classList.remove('bg-primary', 'text-white')
+        btnEl.classList.add('bg-white', 'text-gray-700')
+      })
+      const buttonEl = button as HTMLElement
+      buttonEl.classList.remove('bg-white', 'text-gray-700')
+      buttonEl.classList.add('bg-primary', 'text-white')
+
+      // タブコンテンツの表示切り替え
+      tabContents.forEach((content) => {
+        content.classList.add('hidden')
+      })
+      document.getElementById(`${targetTab}-tab`)?.classList.remove('hidden')
+
+      // スクロールをトップに戻す
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    })
+  })
+
+  // ステップナビゲーションのスクロール
+  const stepNavDots = document.querySelectorAll('.step-nav-dot')
+  const stepArticles = document.querySelectorAll('article[id^="step-"]')
+
+  const updateActiveStep = () => {
+    const scrollPosition = window.scrollY + 100
+
+    stepArticles.forEach((article, index) => {
+      const rect = article.getBoundingClientRect()
+      const articleTop = rect.top + window.scrollY
+
+      if (
+        scrollPosition >= articleTop &&
+        scrollPosition < articleTop + rect.height
+      ) {
+        stepNavDots.forEach((dot) => dot.classList.remove('bg-primary'))
+        stepNavDots[index+1]?.classList.add('bg-primary')
+      }
+    })
+  }
+
+  window.addEventListener('scroll', updateActiveStep)
+  updateActiveStep()
+
+  // タイマーボタン
+  const formatTimer = (seconds: number): string => {
+    const hours = Math.floor(seconds / 3600)
+    const minutes = Math.floor((seconds % 3600) / 60)
+    const secs = seconds % 60
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
+  }
+
+  document.querySelectorAll('.timer-button').forEach((button) => {
+    const buttonEl = button as HTMLElement
+    const initialSeconds = parseInt(buttonEl.dataset.timer || '0')
+    let remainingSeconds = initialSeconds
+    let intervalId: number | null = null
+    let isRunning = false
+    let isFinished = false
+
+    buttonEl.addEventListener('click', () => {
+      // クリック時のアニメーション
+      buttonEl.classList.add('timer-click-animation')
+      setTimeout(() => {
+        buttonEl.classList.remove('timer-click-animation')
+      }, 200)
+
+      if (isFinished) {
+        // 終了状態から開始前の状態に戻す
+        isFinished = false
+        isRunning = false
+        remainingSeconds = parseInt(buttonEl.dataset.initialTime || '0')
+        buttonEl.textContent = `${formatTimer(remainingSeconds)}`
+        buttonEl.classList.remove('bg-red-800','py-4')
+        buttonEl.classList.add('bg-red-300', 'hover:bg-red-600')
+      } else if (isRunning) {
+        // タイマーが動いている場合は停止
+        if (intervalId !== null) {
+          clearInterval(intervalId)
+          intervalId = null
+        }
+        isRunning = false
+        remainingSeconds = parseInt(buttonEl.dataset.initialTime || '0')
+        buttonEl.textContent = `${formatTimer(remainingSeconds)}`
+        buttonEl.classList.remove('bg-red-800','py-4')
+        buttonEl.classList.add('bg-red-300')
+      } else {
+        // タイマーを開始
+        isRunning = true
+        isFinished = false
+        buttonEl.classList.remove('bg-red-300', 'hover:bg-red-600')
+        buttonEl.classList.add('bg-red-800','py-4')
+
+        intervalId = window.setInterval(() => {
+          remainingSeconds--
+          buttonEl.textContent = `${formatTimer(remainingSeconds)}`
+
+          if (remainingSeconds <= 0) {
+            if (intervalId !== null) {
+              clearInterval(intervalId)
+              intervalId = null
+            }
+            isRunning = false
+            isFinished = true
+            buttonEl.textContent = '終了！'
+            buttonEl.classList.remove('bg-red-800')
+            buttonEl.classList.add('bg-red-500', 'hover:bg-red-600')
+            remainingSeconds = parseInt(buttonEl.dataset.initialTime || '0')
+          }
+        }, 1000)
+      }
+    })
+  })
+
+  // 材料グループモーダル
+  const modal = document.getElementById('ingredient-modal')
+  const modalTitle = document.getElementById('modal-title')
+  const modalContent = document.getElementById('modal-content')
+  const closeModal = document.getElementById('close-modal')
+
+  // ページ内リンクをクリックしたらモーダルを表示
+  document.querySelectorAll('a[href^="#"]').forEach((link) => {
+    link.addEventListener('click', (e) => {
+      const href = link.getAttribute('href')
+      if (href && href.startsWith('#') && href !== '#') {
+        const targetId = href.substring(1)
+        const targetElement = document.getElementById(targetId)
+
+        // 材料グループのIDかチェック
+        if (targetElement && targetElement.classList.contains('bg-secondary')) {
+          e.preventDefault()
+
+          const groupTitle = targetElement.querySelector('h3')?.textContent || targetId
+          const ingredientsList = targetElement.querySelector('ul')?.innerHTML || ''
+
+          if (modalTitle && modalContent) {
+            modalTitle.textContent = groupTitle
+            modalContent.innerHTML = `<ul class="space-y-2">${ingredientsList}</ul>`
+            modal?.classList.remove('hidden')
+          }
+        }
+      }
+    })
+  })
+
+  // モーダルを閉じる
+  closeModal?.addEventListener('click', () => {
+    modal?.classList.add('hidden')
+  })
+
+  modal?.addEventListener('click', (e) => {
+    if (e.target === modal) {
+      modal.classList.add('hidden')
+    }
+  })
+
+  // チェックボックスの打ち消し線とアイコン表示
+  document.querySelectorAll('.ingredient-checkbox').forEach((button) => {
+    button.addEventListener('click', () => {
+      const buttonEl = button as HTMLElement
+      const icon = buttonEl.querySelector('svg')
+      const listItem = buttonEl.closest('li')
+      const nameSpan = listItem?.querySelector('.ingredient-name')
+
+      if (icon && nameSpan) {
+        const isChecked = !icon.classList.contains('opacity-0')
+        const quantitySpan = listItem?.querySelector('.ingredient-quantity')
+        const partsSpan = listItem?.querySelector('.ingredient-parts')
+
+        if (isChecked) {
+          // チェック解除
+          icon.classList.add('opacity-0')
+          icon.classList.remove('opacity-100')
+          icon.classList.remove('text-gray-800')
+          icon.classList.add('text-red-500')
+          nameSpan.classList.remove('line-through', 'text-gray-400')
+          nameSpan.classList.add('text-gray-800')
+          if (quantitySpan) {
+            quantitySpan.classList.remove('line-through', 'text-gray-400')
+            quantitySpan.classList.add('text-gray-800')
+          }
+          if (partsSpan) {
+            partsSpan.classList.remove('line-through')
+            // 説明文は初期状態がtext-gray-400なので、そのまま維持
+          }
+          buttonEl.classList.remove('bg-red-500')
+          buttonEl.classList.add('bg-white')
+        } else {
+          // チェック状態にする
+          icon.classList.remove('opacity-0')
+          icon.classList.add('opacity-100')
+          icon.classList.remove('text-red-500')
+          icon.classList.add('text-white')
+          nameSpan.classList.add('line-through', 'text-gray-400')
+          nameSpan.classList.remove('text-gray-800')
+          if (quantitySpan) {
+            quantitySpan.classList.add('line-through', 'text-gray-400')
+            quantitySpan.classList.remove('text-gray-800')
+          }
+          if (partsSpan) {
+            partsSpan.classList.add('line-through')
+            // 説明文は初期状態がtext-gray-400なので、そのまま維持
+          }
+          buttonEl.classList.remove('bg-white')
+          buttonEl.classList.add('bg-red-500')
+        }
+      }
+    })
+  })
+</script>
+
+<style>
+  .prose a {
+    color: #10b981
+  }
+  .prose a:hover {
+    text-decoration: underline
+  }
+
+  .timer-click-animation {
+    animation: timerPulse 0.2s ease-out
+  }
+
+  @keyframes timerPulse {
+    0% {
+      transform: scale(1)
+    }
+    50% {
+      transform: scale(1.1)
+    }
+    100% {
+      transform: scale(1)
+    }
+  }
+</style>
+

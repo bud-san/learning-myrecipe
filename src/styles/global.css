@@ -1,0 +1,52 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #10b981;
+  --color-secondary: #f3f4f6;
+  --color-background: #f0f9f4;
+
+  --font-sans: 'Noto Sans JP', ui-sans-serif, system-ui, sans-serif;
+}
+
+@layer base {
+  html {
+    font-family: var(--font-sans);
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background-color: var(--color-background);
+  }
+}
+
+/* TailwindCSS 4でカスタムカラーを使用するためのユーティリティクラス */
+@layer utilities {
+  .bg-background {
+    background-color: var(--color-background);
+  }
+
+  .bg-primary {
+    background-color: var(--color-primary);
+  }
+
+  .text-primary {
+    color: var(--color-primary);
+  }
+
+  .bg-secondary {
+    background-color: var(--color-secondary);
+  }
+
+  .border-primary {
+    border-color: var(--color-primary);
+  }
+
+  .hover\:bg-primary:hover {
+    background-color: var(--color-primary);
+  }
+
+  .hover\:text-primary:hover {
+    color: var(--color-primary);
+  }
+}
+

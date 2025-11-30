@@ -1,0 +1,255 @@
+---
+import BaseLayout from '@/layouts/base-layout.astro'
+import Header from '@/components/header.astro'
+import { getRecipes, getIngredients } from '@/lib/microcms'
+import type { Recipe, Ingredient, IngredientGroup, IngredientItem } from '@/types/microcms'
+import { icon } from '@fortawesome/fontawesome-svg-core'
+import { faCheck } from '@/lib/icons'
+
+// Font AwesomeのチェックマークアイコンのSVGを生成
+const checkIconData = icon(faCheck)
+const checkIconHtml = checkIconData?.html || []
+const checkIconSvgContent = Array.isArray(checkIconHtml) ? checkIconHtml.join('') : checkIconHtml
+const checkIconViewBox = (checkIconData as { viewBox?: [number, number, number, number] | string })?.viewBox || [0, 0, 512, 512]
+const checkIconViewBoxStr = Array.isArray(checkIconViewBox)
+  ? `${checkIconViewBox[0]} ${checkIconViewBox[1]} ${checkIconViewBox[2]} ${checkIconViewBox[3]}`
+  : checkIconViewBox
+
+// 全レシピ取得（クライアントサイドでフィルタリングするため、サーバーサイドではフィルタリングしない）
+const allRecipes = await getRecipes({ limit: 1000 })
+const recipes = allRecipes.contents
+---
+
+<BaseLayout title="レシピ一覧 - マイレシピ">
+  <Header />
+  <main class="container mx-auto px-4 py-6">
+    <!-- ページタイトルと並び替え -->
+    <div class="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <h1 id="page-title" class="text-2xl font-semibold text-gray-800">レシピ一覧</h1>
+      <form id="sort-form" class="flex items-center gap-2">
+        <label for="sort" class="text-sm text-gray-700">並び替え:</label>
+        <select
+          id="sort"
+          name="sort"
+          class="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary text-sm"
+        >
+          <option value="newest">新着順</option>
+          <option value="random">ランダム</option>
+        </select>
+      </form>
+    </div>
+
+    <!-- レシピ一覧 -->
+    <div id="recipes-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <!-- クライアントサイドで動的に生成 -->
+    </div>
+    <div id="no-results" class="text-center py-12 hidden">
+      <p class="text-gray-500 text-lg">該当するレシピが見つかりませんでした</p>
+      <a
+        href="/"
+        class="inline-block mt-4 px-6 py-2 bg-primary text-white rounded-md hover:bg-green-600 transition-colors text-sm font-medium"
+      >
+        トップページに戻る
+      </a>
+    </div>
+  </main>
+</BaseLayout>
+
+<script define:vars={{ recipes, checkIconSvgContent, checkIconViewBoxStr }}>
+  // Font AwesomeのfaCheckアイコンのSVG（チェックマーク）
+  const checkIconSvg = `<svg class="w-3 h-3 text-primary" fill="currentColor" viewBox="${checkIconViewBoxStr}" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">${checkIconSvgContent}</svg>`
+  // URLパラメータを取得
+  function getUrlParams() {
+    const params = new URLSearchParams(window.location.search)
+    return {
+      keyword: params.get('keyword') || '',
+      cooking: params.get('cooking') || '',
+      ingredient: params.get('ingredient') || '',
+      suggestion: params.get('suggestion') || '',
+      sort: params.get('sort') || 'newest'
+    }
+  }
+
+  // ページタイトルを生成
+  function getPageTitle(params) {
+    if (params.keyword) {
+      return `「${params.keyword}」の検索結果`
+    } else if (params.cooking) {
+      return `${params.cooking}のレシピ`
+    } else if (params.ingredient) {
+      return `${params.ingredient}を使ったレシピ`
+    } else if (params.suggestion === 'protein') {
+      return 'タンパク質をとりたい'
+    } else if (params.suggestion === 'vegetable') {
+      return '野菜をとりたい'
+    }
+    return 'レシピ一覧'
+  }
+
+  // レシピをフィルタリング
+  function filterRecipes(allRecipes, params) {
+    let filtered = [...allRecipes]
+
+    // キーワード検索
+    if (params.keyword) {
+      filtered = filtered.filter((recipe) =>
+        recipe.title.toLowerCase().includes(params.keyword.toLowerCase())
+      )
+    }
+
+    // 調理方法でフィルタリング
+    if (params.cooking) {
+      filtered = filtered.filter((recipe) => {
+        const methods = recipe.cooking || recipe.cookingMethods || []
+        return methods.includes(params.cooking)
+      })
+    }
+
+    // 材料でフィルタリング
+    if (params.ingredient) {
+      filtered = filtered.filter((recipe) => {
+        if (!recipe.ingredients || !Array.isArray(recipe.ingredients)) {
+          return false
+        }
+        return recipe.ingredients.some((item) => {
+          const ing = item.ingredients || item.ingredient
+          if (!ing || typeof ing !== 'object') return false
+          const name = ing.title || ing.name || ''
+          return name === params.ingredient
+        })
+      })
+    }
+
+    // 提案でフィルタリング
+    if (params.suggestion === 'protein') {
+      const proteinCategories = ['肉', '水産物', '卵・チーズ・乳製品', '豆類']
+      filtered = filtered.filter((recipe) => {
+        if (!recipe.ingredients || !Array.isArray(recipe.ingredients)) {
+          return false
+        }
+        const ingredientCategories = recipe.ingredients
+          .map((item) => {
+            const ing = item.ingredients || item.ingredient
+            return ing && typeof ing === 'object' ? ing.category : null
+          })
+          .filter((cat) => cat !== null)
+        return proteinCategories.some((cat) => ingredientCategories.includes(cat))
+      })
+    } else if (params.suggestion === 'vegetable') {
+      filtered = filtered.filter((recipe) => {
+        if (!recipe.ingredients || !Array.isArray(recipe.ingredients)) {
+          return false
+        }
+        const ingredientCategories = recipe.ingredients
+          .map((item) => {
+            const ing = item.ingredients || item.ingredient
+            return ing && typeof ing === 'object' ? ing.category : null
+          })
+          .filter((cat) => cat !== null)
+        return ingredientCategories.includes('野菜')
+      })
+    }
+
+    // 並び替え（ランダムはクライアントサイドで実行）
+    if (params.sort === 'random') {
+      filtered = filtered.sort(() => Math.random() - 0.5)
+    } else if (params.sort === 'newest') {
+      filtered = filtered.sort((a, b) => {
+        const dateA = a.publishedAt ? new Date(a.publishedAt).getTime() : 0
+        const dateB = b.publishedAt ? new Date(b.publishedAt).getTime() : 0
+        return dateB - dateA
+      })
+    }
+
+    return filtered
+  }
+
+  // レシピカードを生成
+  function createRecipeCard(recipe) {
+    const cookingMethods = recipe.cooking || recipe.cookingMethods || []
+    const methodsHtml = cookingMethods
+      .map(
+        (method) => `
+        <li class="inline-flex items-center gap-1 border border-primary rounded-md px-2 py-1">
+          ${checkIconSvg}
+          <span class="text-sm text-gray-700">${method}</span>
+        </li>
+      `
+      )
+      .join('')
+
+    const descriptionHtml = recipe.description
+      ? `<p class="text-sm text-gray-600 leading-relaxed">${recipe.description}</p>`
+      : ''
+
+    return `
+      <a
+        href="/recipes/${recipe.id}"
+        class="block p-8 bg-white border border-gray-200 rounded-lg hover:shadow-md transition-shadow"
+      >
+        <article>
+          <h3 class="text-lg font-semibold text-gray-800 mb-3">${recipe.title}</h3>
+          <ul class="flex flex-wrap gap-2 mb-3">
+            ${methodsHtml}
+          </ul>
+          ${descriptionHtml}
+        </article>
+      </a>
+    `
+  }
+
+  // レシピ一覧を表示
+  function renderRecipes() {
+    if (!recipes || !Array.isArray(recipes)) return
+
+    const params = getUrlParams()
+    const filtered = filterRecipes(recipes, params)
+    const container = document.getElementById('recipes-container')
+    const noResults = document.getElementById('no-results')
+    const pageTitle = document.getElementById('page-title')
+    const sortSelect = document.getElementById('sort')
+
+    // ページタイトルを更新
+    if (pageTitle) {
+      pageTitle.textContent = getPageTitle(params)
+    }
+
+    // 並び替えセレクトの値を設定
+    if (sortSelect) {
+      sortSelect.value = params.sort
+    }
+
+    // レシピ一覧を表示
+    if (container) {
+      if (filtered.length > 0) {
+        container.innerHTML = filtered.map(createRecipeCard).join('')
+        container.classList.remove('hidden')
+        if (noResults) noResults.classList.add('hidden')
+      } else {
+        container.classList.add('hidden')
+        if (noResults) noResults.classList.remove('hidden')
+      }
+    }
+  }
+
+  // 初期表示
+  renderRecipes()
+
+  // 並び替え変更時に再表示
+  const sortSelect = document.getElementById('sort')
+  if (sortSelect) {
+    sortSelect.addEventListener('change', () => {
+      const params = getUrlParams()
+      params.sort = sortSelect.value
+      const newUrl = new URL(window.location.href)
+      newUrl.searchParams.set('sort', params.sort)
+      window.history.pushState({}, '', newUrl)
+      renderRecipes()
+    })
+  }
+
+  // URL変更時に再表示（ブラウザの戻る/進むボタン対応）
+  window.addEventListener('popstate', () => {
+    renderRecipes()
+  })
+</script>
