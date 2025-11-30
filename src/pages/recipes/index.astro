@@ -62,8 +62,16 @@ const baseUrl = import.meta.env.BASE_URL
   // Font AwesomeのfaCheckアイコンのSVG（チェックマーク）
   const checkIconSvg = `<svg class="w-3 h-3 text-primary" fill="currentColor" viewBox="${checkIconViewBoxStr}" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">${checkIconSvgContent}</svg>`
 
-  // ベースURL（末尾のスラッシュを削除）
-  const base = baseUrl || ''
+  // ベースURLを正規化（末尾のスラッシュを保持、空の場合は'/'）
+  const base = baseUrl || '/'
+  const normalizedBase = base.endsWith('/') ? base : base + '/'
+
+  // パスを構築するヘルパー関数
+  function buildPath(path) {
+    // パスが既にスラッシュで始まっている場合は削除
+    const cleanPath = path.startsWith('/') ? path.slice(1) : path
+    return normalizedBase + cleanPath
+  }
   // URLパラメータを取得
   function getUrlParams() {
     const params = new URLSearchParams(window.location.search)
@@ -190,7 +198,7 @@ const baseUrl = import.meta.env.BASE_URL
 
     return `
       <a
-        href="${base}recipes/${recipe.id}"
+        href="${buildPath(`recipes/${recipe.id}`)}"
         class="block p-8 bg-white border border-gray-200 rounded-lg hover:shadow-md transition-shadow"
       >
         <article>
