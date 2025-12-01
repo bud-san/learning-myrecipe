@@ -35,6 +35,8 @@ export interface Recipe {
   steps?: RecipeStep[]
   ingredients?: IngredientItem[]
   requiredIngredients?: IngredientGroup[]
+  report?: string
+  ai?: string
   publishedAt?: string
   createdAt?: string
   updatedAt?: string

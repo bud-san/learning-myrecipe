@@ -230,6 +230,26 @@ const groupedIngredients = ingredientItems.reduce((groups, item) => {
           )}
         </div>
       </section>
+
+      <!-- 感想セクション -->
+      {recipe.report && (
+        <section class="mt-8">
+          <h2 class="text-xl font-semibold text-gray-800 mb-4">感想</h2>
+          <div class="bg-gray-50 p-6 rounded-lg">
+            <p class="text-gray-700 leading-relaxed whitespace-pre-wrap">{recipe.report}</p>
+          </div>
+        </section>
+      )}
+
+      <!-- AI評価セクション -->
+      {recipe.ai && (
+        <section class="mt-8">
+          <h2 class="text-xl font-semibold text-gray-800 mb-4">AI評価</h2>
+          <div class="bg-gray-50 p-6 rounded-lg">
+            <p class="text-gray-700 leading-relaxed whitespace-pre-wrap">{recipe.ai}</p>
+          </div>
+        </section>
+      )}
     </div>
   </main>
 
