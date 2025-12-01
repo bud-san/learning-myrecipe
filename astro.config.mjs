@@ -12,8 +12,8 @@ export default defineConfig({
     plugins: [tailwindcss()]
   },
   output: 'static',
-  site: 'https://bud-san.github.io/',
-  base: '/learning-myrecipe/'
+  site: 'https://bud-san.github.io',
+  base: '/learning-myrecipe'
 })
 
 
